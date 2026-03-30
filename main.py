@@ -38,7 +38,7 @@ TEXT_TOKENS = {"text", "txt", "plain"}
     PLUGIN_NAME,
     "Codex",
     "QQ status panel for AstrBot on OneBot v11 / NapCat.",
-    "1.0.4",
+    "1.0.5",
 )
 class StatusPanelPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig | None = None):
@@ -60,11 +60,13 @@ class StatusPanelPlugin(Star):
             yield event.plain_result(self._build_help_text())
             return
 
-        snapshot = await self._collect_snapshot()
         reply_mode = self._resolve_reply_mode(command_mode)
 
         if reply_mode == "image":
+            yield event.plain_result("状态图片正在渲染中，请稍候……")
+            snapshot = None
             try:
+                snapshot = await self._collect_snapshot()
                 image_url = await self._render_snapshot_image(event, snapshot)
                 yield event.image_result(image_url)
                 return
@@ -73,7 +75,12 @@ class StatusPanelPlugin(Star):
                     "status_panel image render failed, fallback to text: %s",
                     exc,
                 )
+                yield event.plain_result("图片渲染失败，正在降级到文本模式……")
+                snapshot = snapshot or await self._collect_snapshot()
+                yield event.plain_result(self._render_snapshot_text(snapshot))
+                return
 
+        snapshot = await self._collect_snapshot()
         yield event.plain_result(self._render_snapshot_text(snapshot))
 
     def _parse_status_command(self, message: str) -> str | None:

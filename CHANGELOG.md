@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.5] - 2026-03-30
+
+### Added
+
+- When `\\status image` or image default mode is used, the bot now immediately sends a progress message indicating that the status image is being rendered.
+- When image rendering fails, the bot now immediately sends a fallback notice before replying with the plain-text status result.
+
+### Changed
+
+- Bumped plugin version metadata to `1.0.5` / `v1.0.5`.
+
 ## [1.0.4] - 2026-03-30
 
 ### Fixed
