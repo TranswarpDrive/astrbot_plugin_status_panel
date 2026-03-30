@@ -165,12 +165,14 @@ git clone https://github.com/TranswarpDrive/astrbot_plugin_status_panel.git
 
 本插件使用以下 Python 依赖：
 
+- `jinja2`
 - `psutil`
 - `pynvml`
 
 对应的 `requirements.txt` 已包含：
 
 ```text
+jinja2>=3.1.0
 psutil>=5.9.8
 pynvml>=12.0.0
 ```

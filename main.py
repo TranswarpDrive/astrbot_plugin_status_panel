@@ -11,7 +11,10 @@ import time
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
 
+import jinja2
 import psutil
 from astrbot.api import AstrBotConfig, logger
 from astrbot.api.event import AstrMessageEvent, filter
@@ -35,7 +38,7 @@ TEXT_TOKENS = {"text", "txt", "plain"}
     PLUGIN_NAME,
     "Codex",
     "QQ status panel for AstrBot on OneBot v11 / NapCat.",
-    "1.0.2",
+    "1.0.3",
 )
 class StatusPanelPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig | None = None):
@@ -303,7 +306,7 @@ class StatusPanelPlugin(Star):
         return Path(anchor)
 
     async def _render_snapshot_image(self, event: AstrMessageEvent, snapshot: dict[str, Any]) -> str:
-        avatar_src = self._resolve_avatar_source(event)
+        avatar_src = await self._resolve_avatar_source(event)
         nickname = self._resolve_bot_nickname()
         primary_gpu = snapshot["gpus"][0] if snapshot["gpus"] else None
 
@@ -406,9 +409,12 @@ class StatusPanelPlugin(Star):
             ],
         }
 
+        html = self._render_panel_html(data)
+
         return await self.html_render(
-            self.template,
-            data,
+            html,
+            {},
+            return_url=True,
             options={
                 "type": "png",
                 "timeout": 30,
@@ -499,7 +505,7 @@ class StatusPanelPlugin(Star):
         nickname = str(self.config.get("bot_nickname", "") or "").strip()
         return nickname or "astrbot"
 
-    def _resolve_avatar_source(self, event: AstrMessageEvent) -> str:
+    async def _resolve_avatar_source(self, event: AstrMessageEvent) -> str:
         avatar_file = self._normalize_uploaded_file(self.config.get("avatar_file"))
         if avatar_file:
             avatar_data_uri = self._file_to_data_uri(avatar_file)
@@ -508,12 +514,26 @@ class StatusPanelPlugin(Star):
 
         avatar_url = str(self.config.get("avatar_url", "") or "").strip()
         if avatar_url:
-            return avatar_url
+            if avatar_url.startswith("data:"):
+                return avatar_url
+
+            avatar_data_uri = await asyncio.to_thread(self._download_to_data_uri, avatar_url)
+            if avatar_data_uri:
+                return avatar_data_uri
 
         bot_qq = str(getattr(event.message_obj, "self_id", "") or "").strip()
         if bot_qq.isdigit():
-            return f"https://q1.qlogo.cn/g?b=qq&nk={bot_qq}&s=640"
-        return "https://q1.qlogo.cn/g?b=qq&nk=10000&s=640"
+            qq_avatar_url = f"https://q1.qlogo.cn/g?b=qq&nk={bot_qq}&s=640"
+            avatar_data_uri = await asyncio.to_thread(self._download_to_data_uri, qq_avatar_url)
+            if avatar_data_uri:
+                return avatar_data_uri
+
+        return self._build_placeholder_avatar_data_uri(self._resolve_bot_nickname())
+
+    def _render_panel_html(self, data: dict[str, Any]) -> str:
+        env = jinja2.Environment(autoescape=jinja2.select_autoescape(["html", "xml"]))
+        template = env.from_string(self.template)
+        return template.render(**data)
 
     def _normalize_uploaded_file(self, value: Any) -> str:
         if not value:
@@ -547,6 +567,47 @@ class StatusPanelPlugin(Star):
         mime_type = mimetypes.guess_type(file_path.name)[0] or "application/octet-stream"
         encoded = base64.b64encode(file_path.read_bytes()).decode("ascii")
         return f"data:{mime_type};base64,{encoded}"
+
+    def _download_to_data_uri(self, url: str) -> str:
+        try:
+            request = Request(
+                url,
+                headers={
+                    "User-Agent": "Mozilla/5.0 (AstrBot Status Panel)",
+                    "Accept": "image/*,*/*;q=0.8",
+                },
+            )
+            with urlopen(request, timeout=8) as response:
+                body = response.read()
+                if not body:
+                    return ""
+
+                content_type = response.headers.get_content_type()
+                if not content_type or content_type == "application/octet-stream":
+                    content_type = mimetypes.guess_type(url)[0] or "image/png"
+
+                encoded = base64.b64encode(body).decode("ascii")
+                return f"data:{content_type};base64,{encoded}"
+        except (HTTPError, URLError, TimeoutError, OSError) as exc:
+            logger.debug("status_panel avatar download failed: %s", exc)
+            return ""
+
+    def _build_placeholder_avatar_data_uri(self, text: str) -> str:
+        initials = (text or "A").strip()[:2] or "A"
+        svg = f"""
+<svg xmlns="http://www.w3.org/2000/svg" width="256" height="256" viewBox="0 0 256 256">
+  <defs>
+    <linearGradient id="g" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#6fb6ff"/>
+      <stop offset="100%" stop-color="#ff8a5b"/>
+    </linearGradient>
+  </defs>
+  <rect width="256" height="256" rx="56" fill="url(#g)"/>
+  <text x="50%" y="54%" text-anchor="middle" font-size="88" font-family="Segoe UI, PingFang SC, Microsoft YaHei, sans-serif" fill="#ffffff" font-weight="700">{initials}</text>
+</svg>
+""".strip()
+        encoded = base64.b64encode(svg.encode("utf-8")).decode("ascii")
+        return f"data:image/svg+xml;base64,{encoded}"
 
     def _run_command(self, command: list[str]) -> list[str]:
         try:

@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.3] - 2026-03-30
+
+### Fixed
+
+- Changed the image rendering flow to follow the `astrbot_plugin_picstatus` pattern more closely:
+  - render the final HTML in-plugin first
+  - call `html_render(final_html, {}, return_url=True, options=...)`
+- Inlined avatar resources before rendering so the T2I backend no longer needs to fetch the QQ avatar URL itself.
+
+### Changed
+
+- Added `jinja2` as a runtime dependency for local HTML template rendering.
+- Bumped plugin version metadata to `1.0.3` / `v1.0.3`.
+
 ## [1.0.2] - 2026-03-30
 
 ### Fixed
