@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.2] - 2026-03-30
+
+### Fixed
+
+- Fixed abnormal line breaks in plain-text output after the GPU and process sections by replacing markdown-like list prefixes with plain Chinese labels.
+- Switched the image rendering call to the AstrBot `html_render(template_string, data, options)` style used in the official HTML-to-Image guide to avoid falling back to text mode after `\status image`.
+
+### Changed
+
+- Bumped plugin version metadata to `1.0.2` / `v1.0.2`.
+
 ## [1.0.1] - 2026-03-30
 
 ### Fixed

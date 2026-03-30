@@ -35,13 +35,13 @@ TEXT_TOKENS = {"text", "txt", "plain"}
     PLUGIN_NAME,
     "Codex",
     "QQ status panel for AstrBot on OneBot v11 / NapCat.",
-    "1.0.1",
+    "1.0.2",
 )
 class StatusPanelPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig | None = None):
         super().__init__(context)
         self.config = config or {}
-        self.template_path = str(TEMPLATE_PATH)
+        self.template = TEMPLATE_PATH.read_text(encoding="utf-8")
         self.astrbot_process = psutil.Process(os.getpid())
 
     @filter.platform_adapter_type(filter.PlatformAdapterType.AIOCQHTTP)
@@ -407,9 +407,8 @@ class StatusPanelPlugin(Star):
         }
 
         return await self.html_render(
-            self.template_path,
+            self.template,
             data,
-            return_url=True,
             options={
                 "type": "png",
                 "timeout": 30,
@@ -451,9 +450,9 @@ class StatusPanelPlugin(Star):
         ]
 
         if snapshot["gpus"]:
-            lines.append("GPU：")
-            for gpu in snapshot["gpus"]:
-                gpu_line = f'- {gpu["name"]}'
+            lines.append("GPU 信息：")
+            for index, gpu in enumerate(snapshot["gpus"], start=1):
+                gpu_line = f'GPU {index}：{gpu["name"]}'
                 if gpu["percent"] is not None:
                     gpu_line += f' | {gpu["percent"]:.1f}%'
                 if gpu["memory_used"] is not None and gpu["memory_total"] is not None:
@@ -478,7 +477,7 @@ class StatusPanelPlugin(Star):
         if snapshot["top_processes"]:
             for index, process in enumerate(snapshot["top_processes"], start=1):
                 lines.append(
-                    f'{index}. {process["name"]} (PID {process["pid"]}) | '
+                    f'进程 {index}：{process["name"]} (PID {process["pid"]}) | '
                     f'CPU {process["cpu_percent"]:.1f}% | 内存 {process["memory_percent"]:.1f}%'
                 )
         else:
