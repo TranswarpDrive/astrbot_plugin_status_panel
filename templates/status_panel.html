@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -382,15 +382,15 @@
             <span class="hero-badge">OneBot v11 / NapCat</span>
             <h1 class="hero-title">{{ bot_name }}</h1>
             <p class="hero-subtitle">
-              {{ title }} for QQ bot {{ bot_id or "unknown" }}.
-              Host {{ hostname }} is online, and the latest runtime snapshot was generated at {{ updated_at }}.
+              QQ 机器人 {{ bot_id or "未知" }} 的设备状态面板。
+              当前主机 {{ hostname }} 在线，最新状态快照生成于 {{ updated_at }}。
             </p>
           </div>
         </section>
 
         <aside class="meta-card">
           <div>
-            <div class="meta-label">System</div>
+            <div class="meta-label">系统</div>
             <div class="meta-value">{{ system }}</div>
           </div>
           <div>
@@ -398,11 +398,11 @@
             <div class="meta-value">{{ python_version }}</div>
           </div>
           <div>
-            <div class="meta-label">Device Uptime</div>
+            <div class="meta-label">设备运行时长</div>
             <div class="meta-value">{{ device_uptime }}</div>
           </div>
           <div>
-            <div class="meta-label">AstrBot Uptime</div>
+            <div class="meta-label">AstrBot 运行时长</div>
             <div class="meta-value">{{ astrbot_uptime }}</div>
           </div>
         </aside>
@@ -429,7 +429,7 @@
 
       <section class="panels">
         <div class="section">
-          <h2 class="section-title">Runtime Summary</h2>
+          <h2 class="section-title">运行概览</h2>
           <div class="runtime-grid">
             {% for item in runtime_items %}
             <div class="runtime-item">
@@ -439,26 +439,26 @@
             {% endfor %}
           </div>
 
-          <h2 class="section-title" style="margin-top: 24px;">GPU Details</h2>
+          <h2 class="section-title" style="margin-top: 24px;">GPU 详情</h2>
           {% if gpu_items %}
           <div class="gpu-list">
             {% for item in gpu_items %}
             <div class="gpu-item">
               <div class="gpu-name">{{ item.name }}</div>
               <div class="gpu-meta">
-                <span>Load {{ item.utilization }}</span>
-                <span>VRAM {{ item.memory }}</span>
+                <span>占用 {{ item.utilization }}</span>
+                <span>显存 {{ item.memory }}</span>
               </div>
             </div>
             {% endfor %}
           </div>
           {% else %}
-          <div class="empty-state">No GPU information was detected on this device.</div>
+          <div class="empty-state">当前设备未检测到 GPU 信息。</div>
           {% endif %}
         </div>
 
         <div class="section">
-          <h2 class="section-title">Active Processes</h2>
+          <h2 class="section-title">活跃进程</h2>
           {% if process_items %}
           <div class="process-table">
             {% for item in process_items %}
@@ -467,7 +467,7 @@
               <div>
                 <div class="process-name">
                   {{ item.name }}
-                  <span class="process-pid">PID {{ item.pid }}</span>
+                <span class="process-pid">PID {{ item.pid }}</span>
                 </div>
               </div>
               <div class="process-metric">
@@ -475,14 +475,14 @@
                 <span class="process-metric-value">{{ item.cpu }}</span>
               </div>
               <div class="process-metric">
-                <span class="process-metric-label">Memory</span>
+                <span class="process-metric-label">内存</span>
                 <span class="process-metric-value">{{ item.memory }}</span>
               </div>
             </div>
             {% endfor %}
           </div>
           {% else %}
-          <div class="empty-state">No process activity sample is available yet.</div>
+          <div class="empty-state">当前暂无进程采样数据。</div>
           {% endif %}
         </div>
       </section>

@@ -41,7 +41,7 @@ class StatusPanelPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig | None = None):
         super().__init__(context)
         self.config = config or {}
-        self.template = TEMPLATE_PATH.read_text(encoding="utf-8")
+        self.template_path = str(TEMPLATE_PATH)
         self.astrbot_process = psutil.Process(os.getpid())
 
     @filter.platform_adapter_type(filter.PlatformAdapterType.AIOCQHTTP)
@@ -109,7 +109,7 @@ class StatusPanelPlugin(Star):
 
         return {
             "updated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-            "hostname": platform.node() or "Unknown host",
+            "hostname": platform.node() or "未知主机",
             "system": self._build_system_label(),
             "python_version": platform.python_version(),
             "cpu": {
@@ -252,10 +252,6 @@ class StatusPanelPlugin(Star):
         return []
 
     def _resolve_cpu_name(self) -> str:
-        cpu_name = platform.processor().strip()
-        if cpu_name:
-            return cpu_name
-
         if os.name == "nt":
             lines = self._run_command(
                 [
@@ -266,21 +262,36 @@ class StatusPanelPlugin(Star):
                 ]
             )
             if lines:
-                return lines[0]
+                return self._normalize_cpu_name(lines[0])
+
+        if platform.system() == "Darwin":
+            lines = self._run_command(["sysctl", "-n", "machdep.cpu.brand_string"])
+            if lines:
+                return self._normalize_cpu_name(lines[0])
 
         cpuinfo = Path("/proc/cpuinfo")
         if cpuinfo.exists():
             for line in cpuinfo.read_text(encoding="utf-8", errors="ignore").splitlines():
                 if line.lower().startswith("model name"):
-                    return line.split(":", 1)[-1].strip()
+                    return self._normalize_cpu_name(line.split(":", 1)[-1].strip())
 
-        return "Unknown CPU"
+        cpu_name = platform.processor().strip()
+        if cpu_name and not self._is_generic_cpu_name(cpu_name):
+            return self._normalize_cpu_name(cpu_name)
+
+        return "未知 CPU"
 
     def _build_system_label(self) -> str:
-        system = platform.system() or "Unknown OS"
+        system = platform.system() or "未知系统"
         release = platform.release() or ""
         version = platform.version() or ""
         bits, _ = platform.architecture()
+        system_name_map = {
+            "Windows": "Windows",
+            "Linux": "Linux",
+            "Darwin": "macOS",
+        }
+        system = system_name_map.get(system, system)
         label = " ".join(part for part in [system, release, bits] if part).strip()
         if version and version not in label:
             label = f"{label} ({version})"
@@ -297,7 +308,7 @@ class StatusPanelPlugin(Star):
         primary_gpu = snapshot["gpus"][0] if snapshot["gpus"] else None
 
         data = {
-            "title": "AstrBot Status Panel",
+            "title": "AstrBot 设备状态",
             "bot_name": nickname,
             "bot_id": str(getattr(event.message_obj, "self_id", "") or ""),
             "avatar_src": avatar_src,
@@ -312,11 +323,11 @@ class StatusPanelPlugin(Star):
                     "label": "CPU",
                     "headline": f'{snapshot["cpu"]["percent"]:.1f}%',
                     "title": snapshot["cpu"]["name"],
-                    "subline": f'{snapshot["cpu"]["cores_physical"]}P / {snapshot["cpu"]["cores_logical"]}T',
+                    "subline": f'物理 {snapshot["cpu"]["cores_physical"]} 核 / 逻辑 {snapshot["cpu"]["cores_logical"]} 线程',
                     "extra": (
                         f'{snapshot["cpu"]["frequency"]:.2f} GHz'
                         if snapshot["cpu"]["frequency"] > 0
-                        else "Frequency unavailable"
+                        else "频率不可用"
                     ),
                     "percent": snapshot["cpu"]["percent"],
                     "accent": "#ff8a5b",
@@ -326,46 +337,46 @@ class StatusPanelPlugin(Star):
                     "headline": (
                         f'{primary_gpu["percent"]:.1f}%'
                         if primary_gpu and primary_gpu["percent"] is not None
-                        else "N/A"
+                        else "不可用"
                     ),
-                    "title": primary_gpu["name"] if primary_gpu else "No GPU detected",
+                    "title": primary_gpu["name"] if primary_gpu else "未检测到 GPU",
                     "subline": (
                         f'{self._format_bytes(primary_gpu["memory_used"])} / {self._format_bytes(primary_gpu["memory_total"])}'
                         if primary_gpu
                         and primary_gpu["memory_used"] is not None
                         and primary_gpu["memory_total"] is not None
-                        else "Telemetry unavailable"
+                        else "显存信息不可用"
                     ),
-                    "extra": f'{len(snapshot["gpus"])} device(s)',
+                    "extra": f'{len(snapshot["gpus"])} 个设备',
                     "percent": primary_gpu["percent"] if primary_gpu and primary_gpu["percent"] is not None else 0,
                     "accent": "#7fe36e",
                 },
                 {
-                    "label": "RAM",
+                    "label": "内存",
                     "headline": f'{snapshot["memory"]["percent"]:.1f}%',
                     "title": f'{self._format_bytes(snapshot["memory"]["used"])} / {self._format_bytes(snapshot["memory"]["total"])}',
-                    "subline": "System memory",
-                    "extra": "Virtual memory usage",
+                    "subline": "系统内存",
+                    "extra": "当前内存占用",
                     "percent": snapshot["memory"]["percent"],
                     "accent": "#6fb6ff",
                 },
                 {
-                    "label": "Disk",
+                    "label": "硬盘",
                     "headline": f'{snapshot["disk"]["percent"]:.1f}%',
                     "title": f'{self._format_bytes(snapshot["disk"]["used"])} / {self._format_bytes(snapshot["disk"]["total"])}',
                     "subline": snapshot["disk"]["path"],
-                    "extra": f'R {self._format_rate(snapshot["disk"]["read_speed"])} | W {self._format_rate(snapshot["disk"]["write_speed"])}',
+                    "extra": f'读 {self._format_rate(snapshot["disk"]["read_speed"])} | 写 {self._format_rate(snapshot["disk"]["write_speed"])}',
                     "percent": snapshot["disk"]["percent"],
                     "accent": "#f3d66b",
                 },
             ],
             "runtime_items": [
-                {"label": "Host", "value": snapshot["hostname"]},
-                {"label": "System", "value": snapshot["system"]},
+                {"label": "主机名", "value": snapshot["hostname"]},
+                {"label": "系统", "value": snapshot["system"]},
                 {"label": "Python", "value": snapshot["python_version"]},
-                {"label": "Updated", "value": snapshot["updated_at"]},
-                {"label": "Device Uptime", "value": self._format_duration(snapshot["device_uptime_seconds"])},
-                {"label": "AstrBot Uptime", "value": self._format_duration(snapshot["astrbot_uptime_seconds"])},
+                {"label": "更新时间", "value": snapshot["updated_at"]},
+                {"label": "设备运行时长", "value": self._format_duration(snapshot["device_uptime_seconds"])},
+                {"label": "AstrBot 运行时长", "value": self._format_duration(snapshot["astrbot_uptime_seconds"])},
             ],
             "gpu_items": [
                 {
@@ -373,12 +384,12 @@ class StatusPanelPlugin(Star):
                     "utilization": (
                         f'{gpu["percent"]:.1f}%'
                         if gpu["percent"] is not None
-                        else "Unavailable"
+                        else "不可用"
                     ),
                     "memory": (
                         f'{self._format_bytes(gpu["memory_used"])} / {self._format_bytes(gpu["memory_total"])}'
                         if gpu["memory_used"] is not None and gpu["memory_total"] is not None
-                        else "Unavailable"
+                        else "不可用"
                     ),
                 }
                 for gpu in snapshot["gpus"]
@@ -396,11 +407,12 @@ class StatusPanelPlugin(Star):
         }
 
         return await self.html_render(
-            self.template,
+            self.template_path,
             data,
+            return_url=True,
             options={
                 "type": "png",
-                "timeout": 30000,
+                "timeout": 30,
                 "animations": "disabled",
                 "scale": "device",
                 "full_page": True,
@@ -409,37 +421,37 @@ class StatusPanelPlugin(Star):
 
     def _render_snapshot_text(self, snapshot: dict[str, Any]) -> str:
         lines = [
-            "AstrBot Status Panel",
-            f'Updated: {snapshot["updated_at"]}',
-            f'Host: {snapshot["hostname"]}',
-            f'System: {snapshot["system"]}',
+            "AstrBot 设备状态",
+            f'更新时间：{snapshot["updated_at"]}',
+            f'主机名：{snapshot["hostname"]}',
+            f'系统：{snapshot["system"]}',
             f'Python: {snapshot["python_version"]}',
             "",
             (
-                "CPU: "
+                "CPU："
                 f'{snapshot["cpu"]["name"]} | '
                 f'{snapshot["cpu"]["percent"]:.1f}% | '
-                f'{snapshot["cpu"]["cores_physical"]}P/{snapshot["cpu"]["cores_logical"]}T'
+                f'物理 {snapshot["cpu"]["cores_physical"]} 核 / 逻辑 {snapshot["cpu"]["cores_logical"]} 线程'
             ),
             (
-                "RAM: "
+                "内存："
                 f'{self._format_bytes(snapshot["memory"]["used"])} / '
                 f'{self._format_bytes(snapshot["memory"]["total"])} '
                 f'({snapshot["memory"]["percent"]:.1f}%)'
             ),
             (
-                "Disk: "
+                "硬盘："
                 f'{snapshot["disk"]["path"]} | '
                 f'{self._format_bytes(snapshot["disk"]["used"])} / '
                 f'{self._format_bytes(snapshot["disk"]["total"])} '
                 f'({snapshot["disk"]["percent"]:.1f}%) | '
-                f'R {self._format_rate(snapshot["disk"]["read_speed"])} | '
-                f'W {self._format_rate(snapshot["disk"]["write_speed"])}'
+                f'读 {self._format_rate(snapshot["disk"]["read_speed"])} | '
+                f'写 {self._format_rate(snapshot["disk"]["write_speed"])}'
             ),
         ]
 
         if snapshot["gpus"]:
-            lines.append("GPU:")
+            lines.append("GPU：")
             for gpu in snapshot["gpus"]:
                 gpu_line = f'- {gpu["name"]}'
                 if gpu["percent"] is not None:
@@ -451,15 +463,15 @@ class StatusPanelPlugin(Star):
                     )
                 lines.append(gpu_line)
         else:
-            lines.append("GPU: No GPU detected")
+            lines.append("GPU：未检测到 GPU")
 
         lines.extend(
             [
                 "",
-                f'Device uptime: {self._format_duration(snapshot["device_uptime_seconds"])}',
-                f'AstrBot uptime: {self._format_duration(snapshot["astrbot_uptime_seconds"])}',
+                f'设备运行时长：{self._format_duration(snapshot["device_uptime_seconds"])}',
+                f'AstrBot 运行时长：{self._format_duration(snapshot["astrbot_uptime_seconds"])}',
                 "",
-                "Top processes:",
+                "活跃进程：",
             ]
         )
 
@@ -467,21 +479,21 @@ class StatusPanelPlugin(Star):
             for index, process in enumerate(snapshot["top_processes"], start=1):
                 lines.append(
                     f'{index}. {process["name"]} (PID {process["pid"]}) | '
-                    f'CPU {process["cpu_percent"]:.1f}% | MEM {process["memory_percent"]:.1f}%'
+                    f'CPU {process["cpu_percent"]:.1f}% | 内存 {process["memory_percent"]:.1f}%'
                 )
         else:
-            lines.append("No process data available")
+            lines.append("暂无进程数据")
 
         return "\n".join(lines)
 
     def _build_help_text(self) -> str:
         return (
-            "Usage:\n"
-            "\\status            Use the default reply mode from plugin config.\n"
-            "\\status image      Force image mode for this request.\n"
-            "\\status text       Force plain-text mode for this request.\n"
-            "\\status help       Show this help message.\n\n"
-            "The plugin also accepts /status as an alias."
+            "用法：\n"
+            "\\status            使用插件配置中的默认回复模式。\n"
+            "\\status image      本次强制使用图片模式。\n"
+            "\\status text       本次强制使用纯文本模式。\n"
+            "\\status help       查看帮助说明。\n\n"
+            "同时兼容 /status 作为别名。"
         )
 
     def _resolve_bot_nickname(self) -> str:
@@ -568,7 +580,7 @@ class StatusPanelPlugin(Star):
 
     def _format_bytes(self, size: int | float | None) -> str:
         if size is None:
-            return "N/A"
+            return "不可用"
 
         value = float(size)
         units = ["B", "KB", "MB", "GB", "TB", "PB"]
@@ -580,7 +592,7 @@ class StatusPanelPlugin(Star):
 
     def _format_rate(self, size_per_second: float | None) -> str:
         if size_per_second is None:
-            return "N/A"
+            return "不可用"
         return f"{self._format_bytes(size_per_second)}/s"
 
     def _format_duration(self, seconds: float) -> str:
@@ -591,13 +603,32 @@ class StatusPanelPlugin(Star):
 
         parts = []
         if days:
-            parts.append(f"{days}d")
+            parts.append(f"{days}天")
         if hours or parts:
-            parts.append(f"{hours}h")
+            parts.append(f"{hours}小时")
         if minutes or parts:
-            parts.append(f"{minutes}m")
-        parts.append(f"{secs}s")
+            parts.append(f"{minutes}分")
+        parts.append(f"{secs}秒")
         return " ".join(parts)
+
+    def _is_generic_cpu_name(self, cpu_name: str) -> bool:
+        normalized = cpu_name.strip().lower()
+        if not normalized:
+            return True
+
+        if "family" in normalized and "model" in normalized:
+            return True
+
+        generic_patterns = (
+            "authenticamd",
+            "genuineintel",
+            "amd64",
+            "x86_64",
+        )
+        return any(pattern in normalized for pattern in generic_patterns)
+
+    def _normalize_cpu_name(self, cpu_name: str) -> str:
+        return re.sub(r"\s+", " ", cpu_name).strip()
 
     async def terminate(self):
         return
