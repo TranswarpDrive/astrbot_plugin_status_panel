@@ -2,8 +2,8 @@ name: astrbot_plugin_status_panel
 display_name: AstrBot Status Panel
 desc: Reply QQ device status in text or image for OneBot v11 / NapCat.
 version: v1.0.0
-author: Codex
-repo: ""
+author: TranswarpDrive
+repo: https://github.com/TranswarpDrive/astrbot_plugin_status_panel
 astrbot_version: ">=4.13,<5"
 support_platforms:
   - aiocqhttp
