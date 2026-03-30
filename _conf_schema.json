@@ -1,0 +1,44 @@
+{
+  "reply_mode": {
+    "description": "默认回复模式",
+    "type": "string",
+    "options": [
+      "image",
+      "text"
+    ],
+    "default": "image",
+    "hint": "发送 \\status 时默认使用的返回方式。也可以在命令后临时追加 image 或 text 覆盖。"
+  },
+  "bot_nickname": {
+    "description": "图片中显示的机器人昵称",
+    "type": "string",
+    "default": "astrbot",
+    "hint": "留空时会回退为 astrbot。"
+  },
+  "avatar_url": {
+    "description": "自定义头像 URL",
+    "type": "string",
+    "default": "",
+    "hint": "仅在没有上传头像文件时生效。留空则默认使用当前 QQ 账号头像。"
+  },
+  "avatar_file": {
+    "description": "自定义头像上传",
+    "type": "file",
+    "default": [],
+    "file_types": [
+      "png",
+      "jpg",
+      "jpeg",
+      "webp",
+      "gif",
+      "bmp"
+    ],
+    "hint": "优先级高于头像 URL。支持直接在 AstrBot 面板上传图片。"
+  },
+  "process_count": {
+    "description": "展示的活跃进程数量",
+    "type": "int",
+    "default": 6,
+    "hint": "文本和图片中展示 CPU/内存最活跃的进程数量。"
+  }
+}
