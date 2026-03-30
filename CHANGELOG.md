@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.0.4] - 2026-03-30
+
+### Fixed
+
+- Aligned `html_render` screenshot options with the working `astrbot_plugin_picstatus` strategy:
+  - use `jpeg`
+  - set `quality` to `90`
+  - keep `full_page=True`
+  - use `device_scale_factor_level="ultra"`
+- Removed the previous `timeout=30` screenshot option that could be interpreted by Playwright as a 30ms timeout instead of 30 seconds.
+
+### Changed
+
+- Bumped plugin version metadata to `1.0.4` / `v1.0.4`.
+
 ## [1.0.3] - 2026-03-30
 
 ### Fixed

@@ -38,7 +38,7 @@ TEXT_TOKENS = {"text", "txt", "plain"}
     PLUGIN_NAME,
     "Codex",
     "QQ status panel for AstrBot on OneBot v11 / NapCat.",
-    "1.0.3",
+    "1.0.4",
 )
 class StatusPanelPlugin(Star):
     def __init__(self, context: Context, config: AstrBotConfig | None = None):
@@ -416,11 +416,10 @@ class StatusPanelPlugin(Star):
             {},
             return_url=True,
             options={
-                "type": "png",
-                "timeout": 30,
-                "animations": "disabled",
-                "scale": "device",
+                "type": "jpeg",
+                "quality": 90,
                 "full_page": True,
+                "device_scale_factor_level": "ultra",
             },
         )
 
