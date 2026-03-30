@@ -261,3 +261,7 @@ AstrBot 支持热重载插件。修改代码后：
 ## License
 
 本项目使用 [MIT License](./LICENSE) 开源。
+
+## Changelog
+
+更新日志见 [CHANGELOG.md](./CHANGELOG.md)。
